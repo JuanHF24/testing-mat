@@ -1,0 +1,50 @@
+name: Master CI_CD
+on: 
+  push:
+    branches: [ "master"]
+  pull_request:
+    branches: [ "master"]
+
+jobs:
+  master_ci_cd:
+    runs-on: ubuntu-latest # Cambiado a Ubuntu para mejor compatibilidad con Docker
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v3 # Actualizado a la versión más reciente
+        with:
+          node-version: 20.x
+
+      - name: Setup dependencies
+        run: |
+          npm install
+          npm ci
+
+      - name: Test
+        run: |
+          npm test -- --no-watch --no-progress --browsers=ChromeHeadlessCI
+  
+      - name: Build Angular, output in dist/unit-testing
+        run: |
+          CI=false npm run build
+          
+      - name: Show dir
+        run: |
+          ls -la dist/unit-testing/browser
+
+      - name: Download, run httpd image, container name serving_base
+        run: |
+          docker run -d --name serving_base httpd
+          
+      - name: Docker ps
+        run: |
+          docker ps
+          
+      - name: Copy Angular build to container
+        run: |
+          docker cp dist/unit-testing/browser/. serving_base:/usr/local/apache2/htdocs
+
+      - name: List container
+        run: |
+          docker exec serving_base ls -la /usr/local/apache2/htdocs
